@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Templates - Admin Interface</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Robot Admin</h2>
+            </div>
+            <ul class="nav-links">
+                <li>
+                    <a href="admin.html">
+                        <i class="icon">📊</i>
+                        Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="robot-registration.html">
+                        <i class="icon">🤖</i>
+                        Robot Registration
+                    </a>
+                </li>
+                <li>
+                    <a href="robot-assignment.html">
+                        <i class="icon">📝</i>
+                        Robot Assignment
+                    </a>
+                </li>
+                <li class="active">
+                    <a href="user-templates.html">
+                        <i class="icon">👥</i>
+                        User Templates
+                    </a>
+                </li>
+                <li>
+                    <a href="robot-monitoring.html">
+                        <i class="icon">📡</i>
+                        Robot Monitoring
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-danger">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>User Templates</h1>
+                <div class="header-actions">
+                    <button id="createTemplateBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Template
+                    </button>
+                    <div class="user-info">
+                        <span id="username">Loading...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Template Grid -->
+            <div class="template-grid" id="templateGrid">
+                <!-- Template cards will be dynamically added here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Template Modal -->
+    <div id="createTemplateModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Template</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="createTemplateForm">
+                <div class="form-group">
+                    <label for="templateName">Template Name</label>
+                    <input type="text" id="templateName" name="templateName" required 
+                           placeholder="Enter template name (e.g., Rancho Mirage)">
+                </div>
+
+                <div class="form-group">
+                    <label for="templateColor">Header Color</label>
+                    <select id="templateColor" name="templateColor" required>
+                        <option value="">Select a color</option>
+                        <!-- Colors will be populated by JavaScript -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="robotAssignment">Robot Assignment</label>
+                    <select id="robotAssignment" name="robotAssignment" required>
+                        <option value="">Select a robot</option>
+                        <!-- Available robots will be populated by JavaScript -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="bossUsername">Boss Username</label>
+                    <input type="text" id="bossUsername" name="bossUsername" required 
+                           placeholder="Enter boss username">
+                </div>
+
+                <div class="form-group">
+                    <label for="bossPassword">Boss Password</label>
+                    <input type="password" id="bossPassword" name="bossPassword" required 
+                           placeholder="Enter boss password">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Template Card Template -->
+    <template id="templateCardTemplate">
+        <div class="template-card">
+            <div class="template-card-header">
+                <div class="template-card-title">
+                    <h3 class="template-name"></h3>
+                    <span class="template-robot"></span>
+                </div>
+                <button class="expand-btn">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="template-card-content">
+                <div class="form-group">
+                    <label>Template Name</label>
+                    <input type="text" class="template-name-input" />
+                </div>
+                <div class="form-group">
+                    <label>Header Color</label>
+                    <select class="template-color-select">
+                        <!-- Colors will be populated by JavaScript -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Assigned Robots</label>
+                    <div class="assigned-robots">
+                        <!-- Assigned robots will be listed here -->
+                    </div>
+                    <button class="btn btn-secondary add-robot-btn">
+                        <i class="fas fa-plus"></i> Add Robot
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label>Template Users</label>
+                    <div class="template-users">
+                        <!-- Users will be listed here -->
+                    </div>
+                    <button class="btn btn-secondary add-user-btn">
+                        <i class="fas fa-plus"></i> Add User
+                    </button>
+                </div>
+                <div class="template-card-actions">
+                    <button class="btn btn-primary save-btn">Save Changes</button>
+                    <button class="btn btn-danger delete-btn">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="user-templates.js"></script>
+</body>
+</html> 

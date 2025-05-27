@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Assignment - Admin Interface</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Robot Admin</h2>
+            </div>
+            <ul class="nav-links">
+                <li>
+                    <a href="admin.html">
+                        <i class="icon">📊</i>
+                        Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="robot-registration.html">
+                        <i class="icon">🤖</i>
+                        Robot Registration
+                    </a>
+                </li>
+                <li class="active">
+                    <a href="robot-assignment.html">
+                        <i class="icon">📝</i>
+                        Robot Assignment
+                    </a>
+                </li>
+                <li>
+                    <a href="user-templates.html">
+                        <i class="icon">👥</i>
+                        User Templates
+                    </a>
+                </li>
+                <li>
+                    <a href="robot-monitoring.html">
+                        <i class="icon">📡</i>
+                        Robot Monitoring
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-danger">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>Robot Assignment</h1>
+                <div class="user-info">
+                    <span id="username">Loading...</span>
+                </div>
+            </header>
+
+            <div class="robot-grid" id="robotGrid">
+                <!-- Robot cards will be dynamically added here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Robot Card Template -->
+    <template id="robotCardTemplate">
+        <div class="robot-card">
+            <div class="robot-card-header">
+                <div class="robot-card-title">
+                    <h3 class="robot-name"></h3>
+                    <span class="robot-serial"></span>
+                </div>
+                <button class="expand-btn">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="robot-card-content">
+                <div class="form-group">
+                    <label>Public IP</label>
+                    <input type="text" class="public-ip" />
+                </div>
+                <div class="form-group">
+                    <label>Private IP</label>
+                    <input type="text" class="private-ip" />
+                </div>
+                <div class="form-group">
+                    <label>Secret Key</label>
+                    <input type="password" class="secret-key" />
+                </div>
+                <div class="robot-card-actions">
+                    <button class="btn btn-primary save-btn">Save Changes</button>
+                    <button class="btn btn-danger delete-btn">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="robot-assignment.js"></script>
+</body>
+</html> 

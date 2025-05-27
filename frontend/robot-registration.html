@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Registration - Admin Interface</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Robot Admin</h2>
+            </div>
+            <ul class="nav-links">
+                <li>
+                    <a href="admin.html">
+                        <i class="icon">📊</i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="active">
+                    <a href="robot-registration.html">
+                        <i class="icon">🤖</i>
+                        Robot Registration
+                    </a>
+                </li>
+                <li>
+                    <a href="robot-assignment.html">
+                        <i class="icon">📝</i>
+                        Robot Assignment
+                    </a>
+                </li>
+                <li>
+                    <a href="user-templates.html">
+                        <i class="icon">👥</i>
+                        User Templates
+                    </a>
+                </li>
+                <li>
+                    <a href="robot-monitoring.html">
+                        <i class="icon">📡</i>
+                        Robot Monitoring
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-danger">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>Robot Registration</h1>
+                <div class="user-info">
+                    <span id="username">Loading...</span>
+                </div>
+            </header>
+
+            <div class="registration-form">
+                <form id="robotRegistrationForm">
+                    <div class="form-group">
+                        <label for="robotName">Robot Name</label>
+                        <input type="text" id="robotName" name="robotName" required placeholder="Enter a funny name for your robot">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="publicIP">Public IP</label>
+                        <input type="text" id="publicIP" name="publicIP" required placeholder="Enter public IP address">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="privateIP">Private IP</label>
+                        <input type="text" id="privateIP" name="privateIP" required placeholder="Enter private IP address">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="serialNumber">Serial Number</label>
+                        <input type="text" id="serialNumber" name="serialNumber" required placeholder="Enter robot serial number">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="secretKey">Secret Key</label>
+                        <input type="password" id="secretKey" name="secretKey" required placeholder="Enter secret key">
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Register Robot</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script src="robot-registration.js"></script>
+</body>
+</html> 

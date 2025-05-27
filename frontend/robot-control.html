@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Control - Admin Interface</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Robot Admin</h2>
+            </div>
+            <ul class="nav-links">
+                <li>
+                    <a href="dashboard.html">
+                        <i class="icon">📊</i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="active">
+                    <a href="robot-control.html">
+                        <i class="icon">🤖</i>
+                        Robot Control
+                    </a>
+                </li>
+                <li>
+                    <a href="workflows.html">
+                        <i class="icon">⚙️</i>
+                        Workflows
+                    </a>
+                </li>
+                <li>
+                    <a href="map.html">
+                        <i class="icon">🗺️</i>
+                        Map View
+                    </a>
+                </li>
+                <li>
+                    <a href="system.html">
+                        <i class="icon">📈</i>
+                        System Status
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-danger">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>Robot Control</h1>
+                <div class="user-info">
+                    <span id="username">Loading...</span>
+                </div>
+            </header>
+
+            <div class="control-grid">
+                <!-- Robot Status -->
+                <div class="card">
+                    <h3>Robot Status</h3>
+                    <div id="robotStatus" class="status-indicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Connecting...</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <label>Battery</label>
+                            <span id="batteryLevel">--%</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Position</label>
+                            <span id="robotPosition">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Speed</label>
+                            <span id="robotSpeed">-- m/s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Direct Control -->
+                <div class="card">
+                    <h3>Direct Control</h3>
+                    <div class="control-panel">
+                        <div class="direction-controls">
+                            <button id="forwardBtn" class="btn btn-control">↑</button>
+                            <button id="backwardBtn" class="btn btn-control">↓</button>
+                            <button id="leftBtn" class="btn btn-control">←</button>
+                            <button id="rightBtn" class="btn btn-control">→</button>
+                        </div>
+                        <div class="speed-control">
+                            <label>Speed</label>
+                            <input type="range" id="speedSlider" min="0" max="100" value="50">
+                            <span id="speedValue">50%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <h3>Quick Actions</h3>
+                    <div class="action-buttons">
+                        <button id="stopBtn" class="btn btn-danger">Emergency Stop</button>
+                        <button id="homeBtn" class="btn btn-secondary">Return to Home</button>
+                        <button id="chargeBtn" class="btn btn-primary">Go to Charger</button>
+                    </div>
+                </div>
+
+                <!-- Position Control -->
+                <div class="card">
+                    <h3>Position Control</h3>
+                    <div class="position-controls">
+                        <div class="form-group">
+                            <label>X Position</label>
+                            <input type="number" id="xPosition" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Y Position</label>
+                            <input type="number" id="yPosition" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Orientation</label>
+                            <input type="number" id="orientation" step="0.1">
+                        </div>
+                        <button id="moveToPositionBtn" class="btn btn-primary">Move To Position</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="ws-client.js"></script>
+    <script src="robot-control.js"></script>
+</body>
+</html> 

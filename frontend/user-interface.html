@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Control Interface</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="user-interface.css">
+</head>
+<body>
+    <div class="user-container">
+        <header class="user-header">
+            <div class="header-content">
+                <h1 id="templateName">Template Name</h1>
+                <div class="user-info">
+                    <span id="username">Username</span>
+                    <button id="logoutBtn" class="btn btn-danger">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="user-content">
+            <!-- Workflow Selection Page -->
+            <div id="workflowPage" class="workflow-page">
+                <div class="workflow-options">
+                    <div class="workflow-option" id="pickupOption">
+                        <h2>Pick-Up</h2>
+                        <p>(Recogida)</p>
+                    </div>
+                    <div class="workflow-option" id="dropoffOption">
+                        <h2>Drop-Off</h2>
+                        <p>(Entrega)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floor Selection Page -->
+            <div id="floorPage" class="floor-page" style="display: none;">
+                <h2>Select Floor</h2>
+                <div class="floor-grid" id="floorGrid">
+                    <!-- Floors will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Shelf Point Selection Page -->
+            <div id="shelfPage" class="shelf-page" style="display: none;">
+                <h2>Select Shelf Point</h2>
+                <div id="shelfGrid" class="shelf-grid"></div>
+                <button id="confirmBtn" class="btn btn-primary confirm-btn" style="display: none;">Confirm</button>
+            </div>
+        </main>
+    </div>
+    <script src="user-interface.js"></script>
+</body>
+</html> 

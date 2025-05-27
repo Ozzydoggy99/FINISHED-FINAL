@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1748226941861",
+    "name": "Rancho Mirage Garden Inn",
+    "color": "#00BCD4",
+    "robot": {
+      "id": "1748226222516",
+      "name": "Rancho Mirage",
+      "publicIP": "47.180.91.99",
+      "privateIP": "192.168.4.31",
+      "serialNumber": "L382502104987ir",
+      "secretKey": "667a51a4d948433081a272c78d10a8a4",
+      "status": "offline"
+    },
+    "bossUser": {
+      "username": "Phil",
+      "password": "Lrk0629"
+    },
+    "users": [
+      {
+        "username": "Ried",
+        "password": "Skytech"
+      }
+    ]
+  }
+]
