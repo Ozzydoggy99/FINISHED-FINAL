@@ -7,9 +7,10 @@ const RobotManager = require('./core/RobotManager');
 const MapManager = require('./core/MapManager');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const sqlite3 = require('sqlite3').verbose();
+const db = require('./config/database');
 const robotMaps = require('./robot-maps.js');
 const fs = require('fs');
+require('dotenv').config();
 
 // Initialize Express app
 const app = express();
@@ -295,25 +296,6 @@ try {
 // Serve static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Database setup
-const db = new sqlite3.Database('robots.db', (err) => {
-    if (err) {
-        console.error('Error opening database:', err);
-    } else {
-        console.log('Connected to SQLite database');
-        // Create robots table if it doesn't exist
-        db.run(`CREATE TABLE IF NOT EXISTS robots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            publicIP TEXT NOT NULL,
-            privateIP TEXT NOT NULL,
-            serialNumber TEXT UNIQUE NOT NULL,
-            secretKey TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`);
-    }
-});
-
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -323,7 +305,7 @@ const authenticateToken = (req, res, next) => {
         return res.status(401).json({ error: 'Authentication required' });
     }
 
-    jwt.verify(token, 'your-secret-key', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
         if (err) {
             return res.status(403).json({ error: 'Invalid token' });
         }
@@ -332,8 +314,29 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+// Get single robot endpoint
+app.get('/api/robots/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await db.query(
+            'SELECT * FROM robots WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Robot not found' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // Robot registration endpoint
-app.post('/api/robots/register', authenticateToken, (req, res) => {
+app.post('/api/robots/register', authenticateToken, async (req, res) => {
     const { name, publicIP, privateIP, serialNumber, secretKey } = req.body;
 
     // Validate required fields
@@ -341,37 +344,30 @@ app.post('/api/robots/register', authenticateToken, (req, res) => {
         return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Check if robot with same serial number exists
-    db.get('SELECT * FROM robots WHERE serialNumber = ?', [serialNumber], (err, row) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
+    try {
+        // Check if robot with same serial number exists
+        const existingRobot = await db.query(
+            'SELECT * FROM robots WHERE serialNumber = $1',
+            [serialNumber]
+        );
 
-        if (row) {
+        if (existingRobot.rows.length > 0) {
             return res.status(400).json({ error: 'Robot with this serial number already exists' });
         }
 
         // Insert new robot
-        const sql = `INSERT INTO robots (name, publicIP, privateIP, serialNumber, secretKey) 
-                    VALUES (?, ?, ?, ?, ?)`;
-        
-        db.run(sql, [name, publicIP, privateIP, serialNumber, secretKey], function(err) {
-            if (err) {
-                console.error('Error inserting robot:', err);
-                return res.status(500).json({ error: 'Failed to register robot' });
-            }
+        const result = await db.query(
+            `INSERT INTO robots (name, publicIP, privateIP, serialNumber, secretKey)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [name, publicIP, privateIP, serialNumber, secretKey]
+        );
 
-            res.json({
-                id: this.lastID,
-                name,
-                publicIP,
-                privateIP,
-                serialNumber,
-                secretKey
-            });
-        });
-    });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 // Get all robots endpoint
@@ -403,7 +399,7 @@ app.get('/api/robots', authenticateToken, (req, res) => {
 });
 
 // Update robot endpoint
-app.put('/api/robots/:id', authenticateToken, (req, res) => {
+app.put('/api/robots/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { name, publicIP, privateIP, secretKey } = req.body;
 
@@ -411,40 +407,45 @@ app.put('/api/robots/:id', authenticateToken, (req, res) => {
         return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const sql = `UPDATE robots 
-                SET name = ?, publicIP = ?, privateIP = ?, secretKey = ?
-                WHERE id = ?`;
+    try {
+        const result = await db.query(
+            `UPDATE robots 
+             SET name = $1, publicIP = $2, privateIP = $3, secretKey = $4
+             WHERE id = $5
+             RETURNING *`,
+            [name, publicIP, privateIP, secretKey, id]
+        );
 
-    db.run(sql, [name, publicIP, privateIP, secretKey, id], function(err) {
-        if (err) {
-            console.error('Error updating robot:', err);
-            return res.status(500).json({ error: 'Failed to update robot' });
-        }
-
-        if (this.changes === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Robot not found' });
         }
 
-        res.json({ message: 'Robot updated successfully' });
-    });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 // Delete robot endpoint
-app.delete('/api/robots/:id', authenticateToken, (req, res) => {
+app.delete('/api/robots/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
 
-    db.run('DELETE FROM robots WHERE id = ?', [id], function(err) {
-        if (err) {
-            console.error('Error deleting robot:', err);
-            return res.status(500).json({ error: 'Failed to delete robot' });
-        }
+    try {
+        const result = await db.query(
+            'DELETE FROM robots WHERE id = $1 RETURNING *',
+            [id]
+        );
 
-        if (this.changes === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Robot not found' });
         }
 
-        res.json({ message: 'Robot deleted successfully' });
-    });
+        res.status(204).send();
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 // Protected API routes
