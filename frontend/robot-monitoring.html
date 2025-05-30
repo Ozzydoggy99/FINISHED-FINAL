@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Robot Registration - Admin Interface</title>
+    <title>Robot Monitoring - Admin Interface</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,13 +26,13 @@
                         Robot Control
                     </a>
                 </li>
-                <li>
+                <li class="active">
                     <a href="robot-monitoring.html">
                         <i class="icon">📡</i>
                         Robot Monitoring
                     </a>
                 </li>
-                <li class="active">
+                <li>
                     <a href="robot-registration.html">
                         <i class="icon">📝</i>
                         Robot Registration
@@ -59,47 +59,47 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <header class="content-header">
-                <h1>Robot Registration</h1>
+                <h1>Robot Monitoring</h1>
                 <div class="user-info">
                     <span id="username">Loading...</span>
                 </div>
             </header>
 
-            <div class="registration-form">
-                <form id="robotRegistrationForm">
-                    <div class="form-group">
-                        <label for="robotName">Robot Name</label>
-                        <input type="text" id="robotName" name="robotName" required placeholder="Enter a funny name for your robot">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="publicIP">Public IP</label>
-                        <input type="text" id="publicIP" name="publicIP" required placeholder="Enter public IP address">
-                    </div>
+            <!-- Robot Maps Grid -->
+            <div class="robot-maps-grid"></div>
 
-                    <div class="form-group">
-                        <label for="privateIP">Private IP</label>
-                        <input type="text" id="privateIP" name="privateIP" required placeholder="Enter private IP address">
-                    </div>
+            <!-- Robot Map Card Template -->
+            <template id="robotMapTemplate">
+                <div class="robot-map-card">
+                    <h3 class="robot-name"></h3>
+                    <p class="map-name"></p>
+                </div>
+            </template>
 
-                    <div class="form-group">
-                        <label for="serialNumber">Serial Number</label>
-                        <input type="text" id="serialNumber" name="serialNumber" required placeholder="Enter robot serial number">
+            <!-- Control Containers -->
+            <div class="monitoring-controls">
+                <!-- Task Queue Container -->
+                <div class="control-container">
+                    <h2>Task Queue</h2>
+                    <div class="task-queue-content">
+                        <!-- Task queue items will be added here dynamically -->
                     </div>
+                </div>
 
-                    <div class="form-group">
-                        <label for="secretKey">Secret Key</label>
-                        <input type="password" id="secretKey" name="secretKey" required placeholder="Enter secret key">
+                <!-- Test Buttons Container -->
+                <div class="control-container">
+                    <h2>Test Buttons</h2>
+                    <div class="test-buttons">
+                        <button id="testMoveBtn" class="btn btn-primary">Test Move</button>
+                        <button id="testReserveBtn" class="btn btn-primary">Test Reverse</button>
                     </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Register Robot</button>
-                    </div>
-                </form>
+                </div>
             </div>
         </main>
     </div>
 
-    <script src="robot-registration.js"></script>
+    <script src="ws-client.js" type="module"></script>
+    <script src="robot-monitoring.js" type="module"></script>
 </body>
+</html> 
 </html> 

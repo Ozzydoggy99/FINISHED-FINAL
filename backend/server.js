@@ -487,60 +487,186 @@ app.get('/api/robot-maps', (req, res) => {
     res.json(data || []);
 });
 
+// Database size checking endpoint
+app.get('/api/database/size', authenticateToken, async (req, res) => {
+    try {
+        const dbSize = await db.getDatabaseSize();
+        const tableSizes = await db.getTableSizes();
+        
+        res.json({
+            databaseSize: dbSize,
+            tableSizes: tableSizes
+        });
+    } catch (err) {
+        console.error('Error getting database size:', err);
+        res.status(500).json({ error: 'Failed to get database size' });
+    }
+});
+
+// Test if we can access test-move-command.js
+try {
+    const testMovePath = path.resolve(process.cwd(), 'test-move-command.js');
+    console.log('Checking if test-move-command.js exists at:', testMovePath);
+    if (fs.existsSync(testMovePath)) {
+        console.log('test-move-command.js file found');
+    } else {
+        console.error('test-move-command.js file not found');
+    }
+} catch (error) {
+    console.error('Error checking for test-move-command.js:', error);
+}
+
 // WebSocket connection handling
 wss.on('connection', (ws) => {
-    console.log('New client connected');
+    console.log('New WebSocket connection');
 
-    // Handle messages from clients
-    ws.on('message', async (message) => {
+    // Send initial robot maps data
+    const initialData = robotMaps.getRobotMapsData();
+    if (initialData) {
+        ws.send(JSON.stringify({
+            type: 'robotMaps',
+            data: initialData
+        }));
+    }
+
+    // Handle incoming messages
+    ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
-            handleWebSocketMessage(ws, data);
-        } catch (error) {
-            console.error('Error handling message:', error);
-            ws.send(JSON.stringify({ type: 'error', message: error.message }));
-        }
-    });
+            //console.log('Received WebSocket message:', data);
 
-    // Handle client disconnection
-    ws.on('close', () => {
-        console.log('Client disconnected');
+            // Handle registration messages
+            if (data.type === 'register') {
+                console.log('Client registered as:', data.role);
+                return;
+            }
+
+            switch (data.type) {
+                case 'test_move':
+                    console.log('Executing test move command...');
+                    const { spawn } = require('child_process');
+                    const path = require('path');
+                    
+                    // Get absolute path to test-move-command.js
+                    const scriptPath = path.resolve(process.cwd(), 'test-move-command.js');
+                    console.log('Script path:', scriptPath);
+                    console.log('Current working directory:', process.cwd());
+
+                    try {
+                        const testMove = spawn('node', [scriptPath], {
+                            cwd: process.cwd(),
+                            stdio: ['ignore', 'pipe', 'pipe']
+                        });
+
+                        console.log('Test move process started with PID:', testMove.pid);
+
+                        testMove.stdout.on('data', (data) => {
+                            console.log('Test move stdout:', data.toString());
+                            const logs = data.toString().split('\n');
+                            logs.forEach(log => {
+                                if (log.trim()) {
+                                    ws.send(JSON.stringify({
+                                        type: 'task_log',
+                                        data: log.trim()
+                                    }));
+                                }
+                            });
+                        });
+
+                        testMove.stderr.on('data', (data) => {
+                            console.error('Test move stderr:', data.toString());
+                            const error = data.toString().trim();
+                            ws.send(JSON.stringify({
+                                type: 'task_log',
+                                data: `Error: ${error}`
+                            }));
+                        });
+
+                        testMove.on('error', (error) => {
+                            console.error('Failed to start test move process:', error);
+                            ws.send(JSON.stringify({
+                                type: 'task_log',
+                                data: `Failed to start process: ${error.message}`
+                            }));
+                        });
+
+                        testMove.on('close', (code) => {
+                            console.log('Test move process exited with code:', code);
+                            if (code !== 0) {
+                                ws.send(JSON.stringify({
+                                    type: 'task_log',
+                                    data: `Process exited with code ${code}`
+                                }));
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error spawning test move process:', error);
+                        ws.send(JSON.stringify({
+                            type: 'task_log',
+                            data: `Error spawning process: ${error.message}`
+                        }));
+                    }
+                    break;
+
+                case 'register_robot':
+                    const robotId = robotManager.addRobot(data.robot);
+                    ws.send(JSON.stringify({ type: 'robot_registered', robotId }));
+                    break;
+
+                case 'start_workflow':
+                    const workflow = workflowManager.createWorkflow(
+                        data.template,
+                        data.robotId,
+                        data.mapId,
+                        data.options
+                    );
+                    workflowManager.startWorkflow(workflow.id).then(() => {
+                        ws.send(JSON.stringify({ type: 'workflow_started', workflowId: workflow.id }));
+                    });
+                    break;
+
+                case 'get_robot_status':
+                    const status = robotManager.getRobotStatus(data.robotId);
+                    ws.send(JSON.stringify({ type: 'robot_status', status }));
+                    break;
+
+                case 'get_map_points':
+                    const points = mapManager.getMapPoints(data.mapId);
+                    ws.send(JSON.stringify({ type: 'map_points', points }));
+                    break;
+
+                default:
+                    console.warn('Unknown message type:', data.type);
+                    ws.send(JSON.stringify({ 
+                        type: 'error', 
+                        message: `Unknown message type: ${data.type}`,
+                        receivedData: data 
+                    }));
+            }
+        } catch (error) {
+            console.error('Error handling WebSocket message:', error);
+            ws.send(JSON.stringify({
+                type: 'error',
+                message: error.message
+            }));
+        }
     });
 });
 
-// Handle WebSocket messages
-async function handleWebSocketMessage(ws, data) {
-    switch (data.type) {
-        case 'register_robot':
-            const robotId = robotManager.addRobot(data.robot);
-            ws.send(JSON.stringify({ type: 'robot_registered', robotId }));
-            break;
-
-        case 'start_workflow':
-            const workflow = workflowManager.createWorkflow(
-                data.template,
-                data.robotId,
-                data.mapId,
-                data.options
-            );
-            await workflowManager.startWorkflow(workflow.id);
-            ws.send(JSON.stringify({ type: 'workflow_started', workflowId: workflow.id }));
-            break;
-
-        case 'get_robot_status':
-            const status = robotManager.getRobotStatus(data.robotId);
-            ws.send(JSON.stringify({ type: 'robot_status', status }));
-            break;
-
-        case 'get_map_points':
-            const points = mapManager.getMapPoints(data.mapId);
-            ws.send(JSON.stringify({ type: 'map_points', points }));
-            break;
-
-        default:
-            ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
+// Update all clients with new robot maps data every 30 seconds
+setInterval(() => {
+    const data = robotMaps.getRobotMapsData();
+    if (data) {
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: 'robotMaps',
+                    data: data
+                }));
+            }
+        });
     }
-}
+}, 30000);
 
 // Event handling
 workflowManager.on('workflowStarted', (workflow) => {

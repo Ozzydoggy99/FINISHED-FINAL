@@ -86,7 +86,7 @@ async function setupRobot() {
 
         // Set up WebSocket message handling
         robot.onWebSocketMessage((data) => {
-            console.log('Received WebSocket message:', data);
+            //console.log('Received WebSocket message:', data);
             if (data.topic === '/planning_state') {
                 console.log('Planning state:', data);
             }
@@ -181,11 +181,13 @@ async function moveToDropoffDocking() {
             },
             point_id: point.id  // Use numeric ID for robot communication
         };
-        console.log('Creating move task with params:', moveParams);
+        //console.log('Creating move task with params:', moveParams);
+        console.log('Creating move task');
 
         console.log('Calling createMoveTask...');
         const taskResponse = await robot.createMoveTask(moveParams);
-        console.log('Move task created:', taskResponse);
+        //console.log('Move task created:', taskResponse);
+        console.log('Move task created');
 
         // Extract the task/action ID
         const actionId = taskResponse.id || taskResponse.action_id || taskResponse.task_id;
@@ -227,12 +229,13 @@ async function pickupBin(loadPointName, maxRetries = 3) {
                 throw new Error(`Load point ${loadPointName} not found`);
             }
 
-            console.log('Found load point:', {
-                name: loadPoint.name,
-                id: loadPoint.id,
-                coordinates: loadPoint.coordinates,
-                properties: loadPoint.properties
-            });
+            console.log('Found load point');
+            // console.log('Found load point:', {
+            //     name: loadPoint.name,
+            //     id: loadPoint.id,
+            //     coordinates: loadPoint.coordinates,
+            //     properties: loadPoint.properties
+            // });
 
             // Step 2: Align with rack
             console.log('\nStep 1: Aligning with rack...');
@@ -248,7 +251,8 @@ async function pickupBin(loadPointName, maxRetries = 3) {
                 creator: 'test',
                 point_id: loadPoint.id
             };
-            console.log('Creating alignment task with params:', alignParams);
+            //console.log('Creating alignment task with params:', alignParams);
+            console.log('Creating alignment task');
 
             const alignResponse = await robot.createMoveTask(alignParams);
             const alignId = alignResponse.id || alignResponse.action_id || alignResponse.task_id;
@@ -380,7 +384,8 @@ async function main() {
             point_id: loadDockingPoint.id
         };
 
-        console.log('Moving to load docking point with params:', loadDockingParams);
+        //console.log('Moving to load docking point with params:', loadDockingParams);
+        console.log('Moving to load docking point');
         const loadDockingResponse = await robot.createMoveTask(loadDockingParams);
         const loadDockingId = loadDockingResponse.id || loadDockingResponse.action_id || loadDockingResponse.task_id;
         
@@ -548,7 +553,7 @@ process.on('SIGINT', async () => {
 });
 
 // Run the main function
-console.log('Starting main function...');
+//console.log('Starting main function...');
 main().catch(error => {
     console.error('Unhandled error in main:', error);
 }); 
