@@ -541,14 +541,14 @@ wss.on('connection', (ws) => {
                 return;
             }
 
+            // Common imports and declarations for test commands
+            const { spawn } = require('child_process');
+            const scriptPath = path.resolve(process.cwd(), 'test-move-command.js');
+            const reverseScriptPath = path.resolve(process.cwd(), 'test-reverse-move-command.js');
+
             switch (data.type) {
                 case 'test_move':
                     console.log('Executing test move command...');
-                    const { spawn } = require('child_process');
-                    const path = require('path');
-                    
-                    // Get absolute path to test-move-command.js
-                    const scriptPath = path.resolve(process.cwd(), 'test-move-command.js');
                     console.log('Script path:', scriptPath);
                     console.log('Current working directory:', process.cwd());
 
@@ -601,6 +601,67 @@ wss.on('connection', (ws) => {
                         });
                     } catch (error) {
                         console.error('Error spawning test move process:', error);
+                        ws.send(JSON.stringify({
+                            type: 'task_log',
+                            data: `Error spawning process: ${error.message}`
+                        }));
+                    }
+                    break;
+
+                case 'test_reverse':
+                    console.log('Executing test reverse command...');
+                    console.log('Reverse script path:', reverseScriptPath);
+                    console.log('Current working directory:', process.cwd());
+
+                    try {
+                        const testReverse = spawn('node', [reverseScriptPath], {
+                            cwd: process.cwd(),
+                            stdio: ['ignore', 'pipe', 'pipe']
+                        });
+
+                        console.log('Test reverse process started with PID:', testReverse.pid);
+
+                        testReverse.stdout.on('data', (data) => {
+                            console.log('Test reverse stdout:', data.toString());
+                            const logs = data.toString().split('\n');
+                            logs.forEach(log => {
+                                if (log.trim()) {
+                                    ws.send(JSON.stringify({
+                                        type: 'task_log',
+                                        data: log.trim()
+                                    }));
+                                }
+                            });
+                        });
+
+                        testReverse.stderr.on('data', (data) => {
+                            console.error('Test reverse stderr:', data.toString());
+                            const error = data.toString().trim();
+                            ws.send(JSON.stringify({
+                                type: 'task_log',
+                                data: `Error: ${error}`
+                            }));
+                        });
+
+                        testReverse.on('error', (error) => {
+                            console.error('Failed to start test reverse process:', error);
+                            ws.send(JSON.stringify({
+                                type: 'task_log',
+                                data: `Failed to start process: ${error.message}`
+                            }));
+                        });
+
+                        testReverse.on('close', (code) => {
+                            console.log('Test reverse process exited with code:', code);
+                            if (code !== 0) {
+                                ws.send(JSON.stringify({
+                                    type: 'task_log',
+                                    data: `Process exited with code ${code}`
+                                }));
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error spawning test reverse process:', error);
                         ws.send(JSON.stringify({
                             type: 'task_log',
                             data: `Error spawning process: ${error.message}`

@@ -116,9 +116,15 @@ function initializeTestButtons() {
 
     testReserveBtn.addEventListener('click', () => {
         console.log('Test Reverse button clicked');
+        // Clear previous logs when starting new test
+        taskQueueContent.innerHTML = '';
+        addTaskLog('Starting test reverse command...');
+        
+        // Send test reverse command
         wsClient.send({
             type: 'test_reverse'
         });
+        console.log('Sent test_reverse command to server');
     });
 }
 
