@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Monitoring</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Robot Admin</h2>
+            </div>
+            <ul class="nav-links">
+                <li><a href="admin-dashboard.html"><i class="icon">📊</i>Dashboard</a></li>
+                <li><a href="robot-registration.html"><i class="icon">🤖</i>Robot Registration</a></li>
+                <li><a href="robot-assignment.html"><i class="icon">📝</i>Robot Assignment</a></li>
+                <li><a href="user-templates.html"><i class="icon">👥</i>User Templates</a></li>
+                <li class="active"><a href="robot-monitoring.html"><i class="icon">🖥️</i>Robot Monitoring</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-danger">Logout</button>
+            </div>
+        </nav>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>Robot Monitoring</h1>
+                <div class="user-info">
+                    <span id="username">Loading...</span>
+                </div>
+            </header>
+            <div class="dashboard-content">
+                <div id="monitoringCards" class="card-grid"></div>
+            </div>
+        </main>
+    </div>
+    <script src="robot-monitoring.js"></script>
+</body>
+</html> 
