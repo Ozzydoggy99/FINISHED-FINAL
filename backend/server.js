@@ -293,6 +293,33 @@ try {
     console.error('Failed to register robot:', error);
 }
 
+// Initialize ESP32 elevator controller
+const esp32Config = {
+    ip: process.env.ESP32_IP || '192.168.1.200', // Default ESP32 IP
+    port: process.env.ESP32_PORT || 81 // Default ESP32 WebSocket port
+};
+
+robotManager.initializeElevatorController(esp32Config).then(success => {
+    if (success) {
+        console.log('ESP32 elevator controller initialized successfully');
+    } else {
+        console.error('Failed to initialize ESP32 elevator controller');
+    }
+});
+
+// Handle elevator controller events
+robotManager.on('elevator_controller_connected', () => {
+    broadcastToClients({ type: 'elevator_controller_status', status: 'connected' });
+});
+
+robotManager.on('elevator_controller_disconnected', () => {
+    broadcastToClients({ type: 'elevator_controller_status', status: 'disconnected' });
+});
+
+robotManager.on('elevator_controller_error', (error) => {
+    broadcastToClients({ type: 'elevator_controller_error', error });
+});
+
 // Serve static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -530,21 +557,9 @@ wss.on('connection', (ws) => {
     }
 
     // Handle incoming messages
-    ws.on('message', (message) => {
+    ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
-            //console.log('Received WebSocket message:', data);
-
-            // Handle registration messages
-            if (data.type === 'register') {
-                console.log('Client registered as:', data.role);
-                return;
-            }
-
-            // Common imports and declarations for test commands
-            const { spawn } = require('child_process');
-            const scriptPath = path.resolve(process.cwd(), 'test-move-command.js');
-            const reverseScriptPath = path.resolve(process.cwd(), 'test-reverse-move-command.js');
 
             switch (data.type) {
                 case 'test_move':
@@ -696,20 +711,112 @@ wss.on('connection', (ws) => {
                     ws.send(JSON.stringify({ type: 'map_points', points }));
                     break;
 
+                case 'use_elevator':
+                    try {
+                        const { robotId, currentFloor, targetFloor } = data;
+                        const success = await robotManager.useElevator(robotId, currentFloor, targetFloor);
+                        
+                        ws.send(JSON.stringify({
+                            type: 'elevator_status',
+                            success,
+                            robotId,
+                            currentFloor,
+                            targetFloor
+                        }));
+                    } catch (error) {
+                        console.error('Error using elevator:', error);
+                        ws.send(JSON.stringify({
+                            type: 'elevator_error',
+                            error: error.message
+                        }));
+                    }
+                    break;
+
+                case 'test_elevator':
+                    try {
+                        const { floor } = data;
+                        const success = await robotManager.elevatorController.goToFloor(floor);
+                        
+                        ws.send(JSON.stringify({
+                            type: 'elevator_test_status',
+                            success,
+                            floor
+                        }));
+                    } catch (error) {
+                        console.error('Error testing elevator:', error);
+                        ws.send(JSON.stringify({
+                            type: 'elevator_error',
+                            error: error.message
+                        }));
+                    }
+                    break;
+
+                case 'test_elevator_movement':
+                    try {
+                        console.log('Executing test elevator movement...');
+                        const { currentFloor, targetFloor } = data;
+                        const scriptPath = path.resolve(process.cwd(), 'test-elevator-movement.js');
+                        
+                        const testElevator = spawn('node', [scriptPath, currentFloor.toString(), targetFloor.toString()], {
+                            cwd: process.cwd(),
+                            stdio: ['ignore', 'pipe', 'pipe']
+                        });
+
+                        console.log('Test elevator movement process started with PID:', testElevator.pid);
+
+                        testElevator.stdout.on('data', (data) => {
+                            console.log('Test elevator stdout:', data.toString());
+                            const logs = data.toString().split('\n');
+                            logs.forEach(log => {
+                                if (log.trim()) {
+                                    ws.send(JSON.stringify({
+                                        type: 'task_log',
+                                        data: log.trim()
+                                    }));
+                                }
+                            });
+                        });
+
+                        testElevator.stderr.on('data', (data) => {
+                            console.error('Test elevator stderr:', data.toString());
+                            const error = data.toString().trim();
+                            ws.send(JSON.stringify({
+                                type: 'task_log',
+                                data: `Error: ${error}`
+                            }));
+                        });
+
+                        testElevator.on('error', (error) => {
+                            console.error('Failed to start test elevator process:', error);
+                            ws.send(JSON.stringify({
+                                type: 'task_log',
+                                data: `Failed to start process: ${error.message}`
+                            }));
+                        });
+
+                        testElevator.on('close', (code) => {
+                            console.log('Test elevator process exited with code:', code);
+                            if (code !== 0) {
+                                ws.send(JSON.stringify({
+                                    type: 'task_log',
+                                    data: `Process exited with code ${code}`
+                                }));
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error spawning test elevator process:', error);
+                        ws.send(JSON.stringify({
+                            type: 'task_log',
+                            data: `Error spawning process: ${error.message}`
+                        }));
+                    }
+                    break;
+
                 default:
-                    console.warn('Unknown message type:', data.type);
-                    ws.send(JSON.stringify({ 
-                        type: 'error', 
-                        message: `Unknown message type: ${data.type}`,
-                        receivedData: data 
-                    }));
+                    console.log('Unknown message type:', data.type);
             }
         } catch (error) {
             console.error('Error handling WebSocket message:', error);
-            ws.send(JSON.stringify({
-                type: 'error',
-                message: error.message
-            }));
         }
     });
 });
