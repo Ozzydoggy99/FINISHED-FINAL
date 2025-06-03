@@ -175,7 +175,7 @@ class AutoXingRobot {
             await this.connectWebSocket();
             this.connected = true;
             this.connectionAttempts = 0;
-            console.log(`Connected to robot ${this.config.serialNumber}`);
+            //console.log(`Connected to robot ${this.config.serialNumber}`);
             return true;
         } catch (error) {
             console.error(`Failed to connect to robot ${this.config.serialNumber}:`, error);
@@ -221,7 +221,7 @@ class AutoXingRobot {
                 this.ws.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        console.log(`Received WebSocket message from robot ${this.config.serialNumber}:`, data);
+                        //console.log(`Received WebSocket message from robot ${this.config.serialNumber}:`, data);
                         if (this.handleWebSocketMessage) {
                             this.handleWebSocketMessage(data);
                         } else {
@@ -302,15 +302,17 @@ class AutoXingRobot {
             }
 
             const mapData = await response.json();
-            console.log('Map data received:', JSON.stringify(mapData, null, 2));
+            console.log('Map data received');
+            //console.log('Map data received:', JSON.stringify(mapData, null, 2));
             
             // Parse the overlays data from the map details
             const points = [];
             if (mapData.overlays) {
                 try {
-                    console.log('Raw overlays:', mapData.overlays);
+                    //console.log('Raw overlays:', mapData.overlays);
                     const overlays = JSON.parse(mapData.overlays);
-                    console.log('Parsed overlays:', JSON.stringify(overlays, null, 2));
+                    console.log('Parsed overlays');
+                    //console.log('Parsed overlays:', JSON.stringify(overlays, null, 2));
                     
                     if (overlays.type === 'FeatureCollection' && Array.isArray(overlays.features)) {
                         overlays.features.forEach(feature => {
@@ -365,7 +367,8 @@ class AutoXingRobot {
     // Movement Control
     async createMoveAction(params) {
         try {
-            console.log('Creating move action with params:', params);
+            //console.log('Creating move action with params:', params);
+            console.log('Creating move action');
             const response = await fetch(`${this.config.getBaseUrl()}/chassis/moves`, {
                 method: 'POST',
                 headers: this.config.getHeaders(),
@@ -384,7 +387,8 @@ class AutoXingRobot {
             }
 
             const data = await response.json();
-            console.log('Move action created successfully:', data);
+            //console.log('Move action created successfully:', data);
+            console.log('Move action created successfully');
             return data;
         } catch (error) {
             console.error('Error creating move action:', error);
@@ -394,9 +398,10 @@ class AutoXingRobot {
 
     async createMoveTask(params) {
         try {
-            console.log('Creating move task with params:', params);
+            //console.log('Creating move task with params:', params);
+            console.log('Creating move task');
             const action = await this.createMoveAction(params);
-            console.log('Move action created:', action);
+            //console.log('Move action created:', action);
             return action;
         } catch (error) {
             console.error('Error creating move task:', error);
@@ -439,7 +444,7 @@ class AutoXingRobot {
     // Event Handlers
     handleWebSocketMessage(data) {
         // Override this method to handle WebSocket messages
-        console.log(`Received WebSocket message from robot ${this.config.serialNumber}:`, data);
+        //console.log(`Received WebSocket message from robot ${this.config.serialNumber}:`, data);
     }
 
     // Utility Methods
