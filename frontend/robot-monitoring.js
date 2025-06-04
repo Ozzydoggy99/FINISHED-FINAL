@@ -59,7 +59,8 @@ async function cancelTask(templateId, taskId) {
             headers: { 'Authorization': `AppCode ${token}` }
         });
         if (!res.ok) {
-            throw new Error('Failed to cancel task');
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Failed to cancel task');
         }
         // Refresh the monitoring cards to show updated queue
         await renderMonitoringCards();

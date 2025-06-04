@@ -105,8 +105,18 @@ function showFloorSelection() {
         return response.json();
     })
     .then(template => {
+        // Parse robot if stored as JSONB string
+        let robot = template.robot;
+        if (typeof robot === 'string') {
+            try {
+                robot = JSON.parse(robot);
+            } catch (e) {
+                console.error('Error parsing robot JSON:', e);
+                robot = null;
+            }
+        }
         // Get the robot's serial number from the template
-        const robotSerial = template.robot?.serialNumber || (template.robots && template.robots[0]?.serialNumber);
+        const robotSerial = robot?.serial_number || robot?.serialNumber || (template.robots && (template.robots[0]?.serial_number || template.robots[0]?.serialNumber));
         if (!robotSerial) throw new Error('No robot assigned to this template');
         // Fetch robot maps from backend cache
         return fetch('/api/robot-maps').then(res => res.json()).then(robotMaps => {
@@ -120,7 +130,7 @@ function showFloorSelection() {
         if (!floorGrid) return;
         floorGrid.innerHTML = '';
         maps.forEach(map => {
-            // Extract floor number from name (e.g., "Floor1" -> "1")
+            if (!map.map_name) throw new Error('Map name is missing for a floor');
             const floorNumber = map.map_name.replace(/[^0-9]/g, '');
             const floorCard = document.createElement('div');
             floorCard.className = 'floor-card';
@@ -136,7 +146,7 @@ function showFloorSelection() {
 }
 
 function selectFloor(floorName, mapId) {
-    currentWorkflow.floor = floorName;
+    currentWorkflow.floor = floorName.replace(/[^0-9]/g, '');
     showShelfPoints(floorName, mapId);
 }
 
@@ -163,8 +173,18 @@ function showShelfPoints(floorName, mapId) {
         return response.json();
     })
     .then(template => {
+        // Parse robot if stored as JSONB string
+        let robot = template.robot;
+        if (typeof robot === 'string') {
+            try {
+                robot = JSON.parse(robot);
+            } catch (e) {
+                console.error('Error parsing robot JSON:', e);
+                robot = null;
+            }
+        }
         // Get the robot's serial number from the template
-        const robotSerial = template.robot?.serialNumber || (template.robots && template.robots[0]?.serialNumber);
+        const robotSerial = robot?.serial_number || robot?.serialNumber || (template.robots && (template.robots[0]?.serial_number || template.robots[0]?.serialNumber));
         if (!robotSerial) throw new Error('No robot assigned to this template');
         // Fetch robot maps from backend cache
         return fetch('/api/robot-maps').then(res => res.json()).then(robotMaps => {
@@ -242,13 +262,12 @@ if (confirmBtn) {
             alert('Please complete all selections');
             return;
         }
-
-        // Send task to backend
-        fetch(`/api/templates/${templateId}/tasks`, {
+        // Only send to the queue-task endpoint
+        fetch(`/api/templates/${templateId}/queue-task`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `AppCode ${token}`
             },
             body: JSON.stringify({
                 type: currentWorkflow.type,
@@ -256,14 +275,19 @@ if (confirmBtn) {
                 shelfPoint: currentWorkflow.shelfPoint
             })
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to create task');
+        .then(async response => {
+            console.log('Queue-task creation response status:', response.status);
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = null;
             }
-            return response.json();
-        })
-        .then(task => {
-            alert('Task created successfully');
+            console.log('Queue-task creation response body:', data);
+            if (!response.ok) {
+                throw new Error(data && data.error ? data.error : 'Failed to queue task');
+            }
+            alert('Task queued successfully');
             // Reset workflow and return to start
             currentWorkflow = {
                 type: null,
@@ -274,7 +298,6 @@ if (confirmBtn) {
             const floorPage = document.getElementById('floorPage');
             const shelfPage = document.getElementById('shelfPage');
             const confirmBtn = document.getElementById('confirmBtn');
-
             if (workflowPage) workflowPage.style.display = 'block';
             if (floorPage) floorPage.style.display = 'none';
             if (shelfPage) shelfPage.style.display = 'none';

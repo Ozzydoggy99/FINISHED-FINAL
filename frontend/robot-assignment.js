@@ -50,12 +50,12 @@ function displayRobots(robots) {
         
         // Set basic info
         card.querySelector('.robot-name').textContent = robot.name;
-        card.querySelector('.robot-serial').textContent = robot.serialNumber;
+        card.querySelector('.robot-serial').textContent = robot.serial_number;
         
         // Set form values
-        card.querySelector('.public-ip').value = robot.publicIP;
-        card.querySelector('.private-ip').value = robot.privateIP;
-        card.querySelector('.secret-key').value = robot.secretKey;
+        card.querySelector('.public-ip').value = robot.public_ip;
+        card.querySelector('.private-ip').value = robot.private_ip;
+        card.querySelector('.secret-key').value = robot.secret_key;
         
         // Add event listeners
         const cardElement = card.querySelector('.robot-card');
@@ -74,10 +74,10 @@ function displayRobots(robots) {
             const updatedRobot = {
                 id: robot.id,
                 name: robot.name,
-                serialNumber: robot.serialNumber,
-                publicIP: card.querySelector('.public-ip').value,
-                privateIP: card.querySelector('.private-ip').value,
-                secretKey: card.querySelector('.secret-key').value
+                serial_number: robot.serial_number,
+                public_ip: card.querySelector('.public-ip').value,
+                private_ip: card.querySelector('.private-ip').value,
+                secret_key: card.querySelector('.secret-key').value
             };
             
             try {

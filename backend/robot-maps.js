@@ -1,15 +1,5 @@
 const http = require('http');
-
-const robots = [
-    {
-        name: 'Rancho Mirage',
-        publicIP: '47.180.91.99',
-        privateIP: '192.168.4.31',
-        serialNumber: 'L382502104987ir',
-        secretKey: '667a51a4d948433081a272c78d10a8a4'
-    }
-    // Add more robots here
-];
+const db = require('../db');
 
 function get(path, headers) {
     return new Promise((resolve, reject) => {
@@ -46,6 +36,7 @@ function get(path, headers) {
 
 async function getRobotMaps(robot) {
     console.log(`Fetching maps for robot ${robot.serialNumber}...`);
+    try {
     const maps = await get('/maps/', {
         hostname: robot.publicIP,
         'APPCODE': robot.secretKey,
@@ -58,6 +49,7 @@ async function getRobotMaps(robot) {
     const mapDetails = [];
     for (const map of maps) {
         console.log(`Fetching details for map ${map.id} (${map.map_name})...`);
+            try {
         const mapDetail = await get(`/maps/${map.id}`, {
             hostname: robot.publicIP,
             'APPCODE': robot.secretKey,
@@ -94,28 +86,15 @@ async function getRobotMaps(robot) {
                 coordinates: feature.geometry.coordinates
             }))
         });
+            } catch (err) {
+                console.error(`Error fetching details for map ${map.id}:`, err);
+            }
     }
     return mapDetails;
-}
-
-async function fetchAllRobotMaps() {
-    console.log('Starting to fetch all robot maps...');
-    const robotMaps = [];
-    for (const robot of robots) {
-        console.log(`Processing robot ${robot.serialNumber}...`);
-        const maps = await getRobotMaps(robot);
-        robotMaps.push({
-            robot: {
-                name: robot.name,
-                publicIP: robot.publicIP,
-                privateIP: robot.privateIP,
-                serialNumber: robot.serialNumber
-            },
-            maps: maps
-        });
+    } catch (err) {
+        console.error(`Error fetching maps for robot ${robot.serialNumber}:`, err);
+        return [];
     }
-    console.log(`Completed fetching maps for ${robotMaps.length} robots`);
-    return robotMaps;
 }
 
 // Example usage
@@ -127,6 +106,32 @@ async function updateRobotMaps() {
         robotMapsData = await fetchAllRobotMaps();
         console.log('Robot maps updated successfully:', new Date().toISOString());
         console.log('Current robotMapsData:', JSON.stringify(robotMapsData, null, 2));
+
+        // Store maps in the database
+        for (const robot of robotMapsData) {
+            const serialNumber = robot.robot.serialNumber;
+            // Delete existing maps for this robot
+            await db.query('DELETE FROM maps WHERE robot_serial_number = $1', [serialNumber]);
+            for (const map of robot.maps) {
+                await db.query(
+                    `INSERT INTO maps (
+                        robot_serial_number, map_name, features, uid, create_time, map_version, overlays_version, thumbnail_url, image_url, url
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    [
+                        serialNumber,
+                        map.map_name,
+                        JSON.stringify(map.features),
+                        map.uid,
+                        map.create_time,
+                        map.map_version,
+                        map.overlays_version,
+                        map.thumbnail_url,
+                        map.image_url,
+                        map.url
+                    ]
+                );
+            }
+        }
     } catch (err) {
         console.error('Error updating robot maps:', err);
     }
@@ -139,5 +144,5 @@ updateRobotMaps();
 setInterval(updateRobotMaps, 30000);
 
 module.exports = {
-    getRobotMapsData: () => robotMapsData
+    getRobotMaps
 }; 

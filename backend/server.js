@@ -888,8 +888,35 @@ async function executeWithRetry(operation, maxRetries = 3) {
     }
 }
 
+// Helper to get required map features for a robot/floor
+async function getRequiredFeaturesForTask(robot, floor, shelfPoint, type, carryingBin) {
+    const mapName = `Floor${floor}`;
+    const mapResult = await db.query(
+        'SELECT * FROM maps WHERE robot_serial_number = $1 AND map_name = $2',
+        [robot.serialNumber, mapName]
+    );
+    if (mapResult.rows.length === 0) {
+        throw new Error(`Map for Floor${floor} not found for this robot`);
+    }
+    let features = mapResult.rows[0].features;
+    if (typeof features === 'string') {
+        try { features = JSON.parse(features); } catch (e) { features = []; }
+    }
+    function getFeatureInfo(name) {
+        return features.find(f => f.name === name);
+    }
+    // Accept only 'Charging Station_docking' and 'Charging Station' as valid charger points
+    const charger = getFeatureInfo('Charging Station_docking') || getFeatureInfo('Charging Station');
+    let shelfLoad = null, shelfLoadDocking = null;
+    if (carryingBin && shelfPoint) {
+        shelfLoad = getFeatureInfo(`${shelfPoint}_load`);
+        shelfLoadDocking = getFeatureInfo(`${shelfPoint}_load_docking`);
+    }
+    return { mapName, charger, shelfLoad, shelfLoadDocking };
+}
+
 // Extract workflow execution into a separate function that can be called by the queue manager
-async function executeWorkflow(robot, type, centralLoad, centralLoadDocking, shelfLoad, shelfLoadDocking, charger) {
+async function executeWorkflow(robot, type, centralLoad, centralLoadDocking, shelfLoad, shelfLoadDocking, charger, options = {}) {
     if (type === 'dropoff') {
         // 1. Move to central_load_docking
         const move1 = {
@@ -1044,6 +1071,68 @@ async function executeWorkflow(robot, type, centralLoad, centralLoadDocking, she
         };
         const moveChargerId = await sendMoveTask(robot, moveCharger);
         await waitForMoveComplete(robot, moveChargerId);
+    } else if (type === 'go_home') {
+        // Just go to the charger
+        const moveCharger = {
+            type: 'charge',
+            target_x: charger.coordinates[0],
+            target_y: charger.coordinates[1],
+            target_z: 0,
+            target_ori: parseFloat(charger.raw_properties.yaw) || 0,
+            target_accuracy: 0.05,
+            charge_retry_count: 5,
+            creator: 'backend',
+            point_id: charger.id
+        };
+        const moveChargerId = await sendMoveTask(robot, moveCharger);
+        await waitForMoveComplete(robot, moveChargerId);
+    } else if (type === 'return_to_charger') {
+        // If carrying a bin, drop it at a pickup point first
+        if (options.carryingBin && shelfLoad && shelfLoadDocking) {
+            // Move to shelf_load_docking
+            const move1 = {
+                type: 'standard',
+                target_x: shelfLoadDocking.coordinates[0],
+                target_y: shelfLoadDocking.coordinates[1],
+                target_z: 0,
+                target_ori: parseFloat(shelfLoadDocking.raw_properties.yaw) || 0,
+                creator: 'backend',
+                point_id: shelfLoadDocking.id
+            };
+            const move1Id = await sendMoveTask(robot, move1);
+            await waitForMoveComplete(robot, move1Id);
+
+            // Move to shelf_load
+            const move2 = {
+                type: 'to_unload_point',
+                target_x: shelfLoad.coordinates[0],
+                target_y: shelfLoad.coordinates[1],
+                target_z: 0.2,
+                target_ori: parseFloat(shelfLoad.raw_properties.yaw) || 0,
+                creator: 'backend',
+                point_id: shelfLoad.id
+            };
+            const move2Id = await sendMoveTask(robot, move2);
+            await waitForMoveComplete(robot, move2Id);
+
+            // Jack down to drop the bin
+            await sendJack(robot, 'jack_down');
+            await new Promise(resolve => setTimeout(resolve, 10000));
+        }
+        // Then go to the charger
+        const moveCharger = {
+            type: 'charge',
+            target_x: charger.coordinates[0],
+            target_y: charger.coordinates[1],
+            target_z: 0,
+            target_ori: parseFloat(charger.raw_properties.yaw) || 0,
+            target_accuracy: 0.05,
+            charge_retry_count: 5,
+            creator: 'backend',
+            point_id: charger.id
+        };
+        const moveChargerId = await sendMoveTask(robot, moveCharger);
+        await waitForMoveComplete(robot, moveChargerId);
     } else {
         throw new Error('Invalid task type');
     }
@@ -1135,8 +1224,8 @@ app.post('/api/templates/:id/tasks', authenticateToken, async (req, res) => {
     const centralLoadDocking = getFeatureInfo(`${centralBase}_load_docking`);
     const shelfLoad = getFeatureInfo(`${shelfPoint}_load`);
     const shelfLoadDocking = getFeatureInfo(`${shelfPoint}_load_docking`);
-    // Accept both 'charger' and 'Charging Station' as valid charger points, and also support docking points
-    const charger = getFeatureInfo('charger_docking') || getFeatureInfo('Charging Station_docking') || getFeatureInfo('charger') || getFeatureInfo('Charging Station');
+    // Accept only 'Charging Station_docking' and 'Charging Station' as valid charger points
+    const charger = getFeatureInfo('Charging Station_docking') || getFeatureInfo('Charging Station');
 
     // Debug: Log which required features are missing
     if (!centralLoad) console.error('Missing feature:', `${centralBase}_load`);
@@ -1152,7 +1241,11 @@ app.post('/api/templates/:id/tasks', authenticateToken, async (req, res) => {
     console.log('shelfLoadDocking:', shelfLoadDocking);
     console.log('charger:', charger);
 
-    if (!centralLoad || !centralLoadDocking || !shelfLoad || !shelfLoadDocking || !charger) {
+    const isReturnOrHome = type === 'go_home' || type === 'return_to_charger';
+    if (
+        (!isReturnOrHome && (!centralLoad || !centralLoadDocking || !shelfLoad || !shelfLoadDocking || !charger)) ||
+        (isReturnOrHome && !charger)
+    ) {
         return res.status(404).json({ error: 'One or more required point sets not found in map features' });
     }
 
@@ -1278,8 +1371,8 @@ app.post('/api/templates/:id/queue-task', authenticateToken, async (req, res) =>
     const centralLoadDocking = getFeatureInfo(`${centralBase}_load_docking`);
     const shelfLoad = getFeatureInfo(`${shelfPoint}_load`);
     const shelfLoadDocking = getFeatureInfo(`${shelfPoint}_load_docking`);
-    // Accept both 'charger' and 'Charging Station' as valid charger points, and also support docking points
-    const charger = getFeatureInfo('charger_docking') || getFeatureInfo('Charging Station_docking') || getFeatureInfo('charger') || getFeatureInfo('Charging Station');
+    // Accept only 'Charging Station_docking' and 'Charging Station' as valid charger points
+    const charger = getFeatureInfo('Charging Station_docking') || getFeatureInfo('Charging Station');
 
     // Debug: Log which required features are missing
     if (!centralLoad) console.error('Missing feature:', `${centralBase}_load`);
@@ -1295,7 +1388,11 @@ app.post('/api/templates/:id/queue-task', authenticateToken, async (req, res) =>
     console.log('shelfLoadDocking:', shelfLoadDocking);
     console.log('charger:', charger);
 
-    if (!centralLoad || !centralLoadDocking || !shelfLoad || !shelfLoadDocking || !charger) {
+    const isReturnOrHome = type === 'go_home' || type === 'return_to_charger';
+    if (
+        (!isReturnOrHome && (!centralLoad || !centralLoadDocking || !shelfLoad || !shelfLoadDocking || !charger)) ||
+        (isReturnOrHome && !charger)
+    ) {
         return res.status(404).json({ error: 'One or more required point sets not found in map features' });
     }
 
@@ -1375,7 +1472,8 @@ setInterval(async () => {
                     enrichedData.centralLoadDocking,
                     enrichedData.shelfLoad,
                     enrichedData.shelfLoadDocking,
-                    enrichedData.charger
+                    enrichedData.charger,
+                    enrichedData.options
                 );
                 await db.query(
                     `UPDATE task_queue SET status = 'completed', completed_at = NOW() WHERE id = $1`,
@@ -1438,39 +1536,68 @@ app.post('/api/templates/:templateId/queue/:taskId/cancel', authenticateToken, a
             // Try to send cancel/stop to robot (best effort)
             try {
                 const serialNumber = task.robot_serial_number;
-                // If robotManager has a cancel/stop, use it (otherwise, this is a no-op)
                 if (robotManager.robots && robotManager.robots.has(serialNumber)) {
                     const robot = robotManager.robots.get(serialNumber).connection;
                     if (robot && typeof robot.send === 'function') {
-                        // Try sending a cancel command (if supported by robot)
                         robot.send({ type: 'cancel' });
                     }
                 }
             } catch (err) {
                 console.warn('Failed to send cancel to robot:', err);
             }
-            // Insert a return_to_charger task for this robot, using the same map/charger logic as queue-task
+            // Insert a return_to_charger task for this robot, using enriched map features
             let enrichedData = task.enriched_data;
             if (typeof enrichedData === 'string') {
                 try { enrichedData = JSON.parse(enrichedData); } catch (e) { enrichedData = {}; }
             }
-            // Only proceed if we have charger info
-            if (!enrichedData.charger || !enrichedData.robot) {
-                return res.status(500).json({ error: 'Missing charger or robot info for return_to_charger' });
+            // Only proceed if we have robot info
+            if (!enrichedData.robot) {
+                return res.status(500).json({ error: 'Missing robot info for return_to_charger' });
             }
+            // Determine if carryingBin (e.g., if task was after jackup)
+            // For now, assume carryingBin if task type was 'pickup' or 'dropoff' and status was in_progress
+            const carryingBin = enrichedData.type === 'pickup' || enrichedData.type === 'dropoff';
+            // Use the same shelfPoint as the original task if carryingBin
+            const shelfPoint = carryingBin ? enrichedData.shelfPoint : null;
+            let features;
+            try {
+                features = await getRequiredFeaturesForTask(enrichedData.robot, enrichedData.floor, shelfPoint, 'return_to_charger', carryingBin);
+            } catch (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (!features.charger) {
+                return res.status(500).json({ error: 'Missing charger info for return_to_charger' });
+            }
+            // Fetch the full robot object from the database
+            const robotResult = await db.query('SELECT * FROM robots WHERE serial_number = $1', [enrichedData.robot.serialNumber]);
+            if (robotResult.rows.length === 0) {
+                return res.status(500).json({ error: 'Robot not found in database for return_to_charger' });
+            }
+            const dbRobot = robotResult.rows[0];
+            const normalizedRobot = {
+                serialNumber: dbRobot.serial_number,
+                publicIP: dbRobot.public_ip,
+                privateIP: dbRobot.private_ip,
+                secretKey: dbRobot.secret_key,
+                name: dbRobot.name
+            };
+
             const returnTask = {
                 template_id: templateId,
-                robot_serial_number: enrichedData.robot.serialNumber,
+                robot_serial_number: normalizedRobot.serialNumber,
                 type: 'return_to_charger',
                 floor: enrichedData.floor,
-                shelf_point: enrichedData.shelfPoint || null,
+                shelf_point: shelfPoint,
                 status: 'queued',
                 enriched_data: JSON.stringify({
                     type: 'return_to_charger',
                     floor: enrichedData.floor,
-                    robot: enrichedData.robot,
-                    mapName: enrichedData.mapName,
-                    charger: enrichedData.charger
+                    robot: normalizedRobot,
+                    mapName: features.mapName,
+                    charger: features.charger,
+                    shelfLoad: features.shelfLoad,
+                    shelfLoadDocking: features.shelfLoadDocking,
+                    options: { carryingBin }
                 })
             };
             await db.query(
@@ -1488,7 +1615,6 @@ app.post('/api/templates/:templateId/queue/:taskId/cancel', authenticateToken, a
             );
             return res.json({ message: 'In-progress task cancelled, return_to_charger task queued' });
         }
-        // Should not reach here
         return res.status(400).json({ error: 'Unknown task status' });
     } catch (err) {
         console.error('Error cancelling task:', err);
@@ -1574,6 +1700,6 @@ setInterval(async () => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 }); 

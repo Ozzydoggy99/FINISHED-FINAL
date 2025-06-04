@@ -139,7 +139,7 @@ async function loadAvailableRobots() {
         robots.forEach(robot => {
             const option = document.createElement('option');
             option.value = robot.id;
-            option.textContent = `${robot.name} (${robot.serialNumber})`;
+            option.textContent = `${robot.name} (${robot.serial_number})`;
             robotSelect.appendChild(option);
         });
     } catch (error) {
@@ -216,6 +216,8 @@ function displayTemplates(templates) {
     templateGrid.innerHTML = '';
 
     templates.forEach(template => {
+        // Use boss_user directly as stored in the database
+        const bossUser = template.boss_user;
         const card = document.createElement('div');
         card.className = 'template-card';
         card.innerHTML = `
@@ -243,7 +245,7 @@ function displayTemplates(templates) {
                     <div class="robot-list">
                         ${template.robot ? `
                             <div class="robot-item">
-                                <span>${template.robot.name} (${template.robot.serialNumber})</span>
+                                <span>${template.robot.name} (${template.robot.serial_number})</span>
                             </div>
                         ` : 'No robot assigned'}
                     </div>
@@ -251,9 +253,9 @@ function displayTemplates(templates) {
                 <div class="form-group">
                     <label>Boss User</label>
                     <div class="user-info">
-                        ${template.bossUser ? `
-                            <p>Username: ${template.bossUser.username}</p>
-                            <p>Password: ${template.bossUser.password}</p>
+                        ${bossUser ? `
+                            <p>Username: ${bossUser.username}</p>
+                            <p>Password: ${bossUser.password}</p>
                         ` : 'No boss user assigned'}
                     </div>
                 </div>

@@ -39,7 +39,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
                 
                 if (templateResponse.ok) {
                     const templates = await templateResponse.json();
-                    const userTemplate = templates.find(t => t.bossUser?.username === username);
+                    // Use boss_user directly as stored in the database
+                    const userTemplate = templates.find(t => t.boss_user && t.boss_user.username === username);
                     if (userTemplate) {
                         window.location.href = `/user-interface.html?templateId=${userTemplate.id}`;
                     } else {
