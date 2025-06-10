@@ -1,16 +1,25 @@
 const sqlite3 = require('sqlite3').verbose();
 const db = require('../config/database');
 const path = require('path');
+const fs = require('fs');
 
 async function migrateData() {
-    const sqliteDb = new sqlite3.Database(path.join(__dirname, '..', 'robots.db'));
+    const sqliteDbPath = path.join(__dirname, '..', 'robots.db');
+    
+    // Check if SQLite database exists
+    if (!fs.existsSync(sqliteDbPath)) {
+        console.log('No existing SQLite database found. Skipping data migration.');
+        return;
+    }
+
+    const sqliteDb = new sqlite3.Database(sqliteDbPath);
 
     try {
         // Get all robots from SQLite
         const robots = await new Promise((resolve, reject) => {
             sqliteDb.all('SELECT * FROM robots', [], (err, rows) => {
                 if (err) reject(err);
-                else resolve(rows);
+                else resolve(rows || []);
             });
         });
 

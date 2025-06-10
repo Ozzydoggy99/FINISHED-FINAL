@@ -13,25 +13,33 @@ class MapManager {
 
     async refreshMaps() {
         try {
-            const mapsList = await this.robot.getMaps();
+            const baseUrl = this.robot.config.getBaseUrl();
+            if (!baseUrl) {
+                throw new Error('Robot base URL is not configured');
+            }
+
+            const response = await fetch(`${baseUrl}/maps`);
+            if (!response.ok) {
+                console.error('Response not OK:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: response.headers,
+                    body: await response.text()
+                });
+                throw new Error(`Failed to get maps: ${response.status} ${response.statusText}`);
+            }
+
+            const maps = await response.json();
             this.maps.clear();
-            
-            for (const mapData of mapsList) {
-                this.maps.set(mapData.id, {
-                    id: mapData.id,
-                    uid: mapData.uid,
-                    name: mapData.map_name,
-                    version: mapData.map_version,
-                    overlaysVersion: mapData.overlays_version,
-                    createTime: mapData.create_time,
-                    points: new Map() // Will store points for this map
+
+            for (const map of maps) {
+                this.maps.set(map.id, {
+                    id: map.id,
+                    name: map.name,
+                    points: new Map()
                 });
             }
-            
-            // Get current map
-            const currentMap = await this.robot.getCurrentMap();
-            this.currentMapId = currentMap.id;
-            
+
             return Array.from(this.maps.values());
         } catch (error) {
             console.error('Error refreshing maps:', error);
@@ -39,23 +47,21 @@ class MapManager {
         }
     }
 
+    getMapById(mapId) {
+        return this.maps.get(mapId);
+    }
+
     async setCurrentMap(mapId) {
-        try {
-            await this.robot.setCurrentMap(mapId);
-            this.currentMapId = mapId;
-            return this.maps.get(mapId);
-        } catch (error) {
-            console.error('Error setting current map:', error);
-            throw error;
+        const map = this.getMapById(mapId);
+        if (!map) {
+            throw new Error(`Map with ID ${mapId} not found`);
         }
+        this.currentMapId = mapId;
+        return map;
     }
 
     getCurrentMap() {
         return this.maps.get(this.currentMapId);
-    }
-
-    getMapById(mapId) {
-        return this.maps.get(mapId);
     }
 
     getMapByName(mapName) {
@@ -77,12 +83,27 @@ class PointManager {
                 throw new Error(`Map with ID ${mapId} not found`);
             }
 
+            const baseUrl = this.robot.config.getBaseUrl();
+            if (!baseUrl) {
+                throw new Error('Robot base URL is not configured');
+            }
+
             // Get map details to extract points from overlays
-            const response = await fetch(`${this.robot.baseUrl}/maps/${mapId}`);
+            const response = await fetch(`${baseUrl}/maps/${mapId}`);
+            if (!response.ok) {
+                console.error('Response not OK:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: response.headers,
+                    body: await response.text()
+                });
+                throw new Error(`Failed to get map details: ${response.status} ${response.statusText}`);
+            }
+
             const mapDetails = await response.json();
             
             // Parse overlays to extract points
-            const overlays = JSON.parse(mapDetails.overlays);
+            const overlays = JSON.parse(mapDetails.overlays || '{"features":[]}');
             map.points.clear();
 
             for (const feature of overlays.features) {
@@ -124,6 +145,46 @@ class PointManager {
         const [x, y] = point.coordinates;
         return this.robot.moveToPoint(x, y);
     }
+
+    addMapPoint(mapId, pointData) {
+        const map = this.mapManager.getMapById(mapId);
+        if (!map) {
+            throw new Error(`Map with ID ${mapId} not found`);
+        }
+
+        // Ensure required fields are present
+        if (!pointData.name || !pointData.coordinates) {
+            throw new Error('Point data must include name and coordinates');
+        }
+
+        const point = {
+            id: pointData.id || pointData.name,
+            name: pointData.name,
+            type: pointData.type || 'waypoint',
+            coordinates: pointData.coordinates,
+            properties: pointData.properties || {}
+        };
+
+        map.points.set(point.id, point);
+        console.log(`Added point "${point.name}" to map ${mapId}`);
+        return point;
+    }
+
+    getMapPoint(mapId, pointId) {
+        const map = this.mapManager.getMapById(mapId);
+        if (!map) {
+            throw new Error(`Map with ID ${mapId} not found`);
+        }
+        return map.points.get(pointId);
+    }
+
+    getMapPointByName(mapId, pointName) {
+        const map = this.mapManager.getMapById(mapId);
+        if (!map) {
+            throw new Error(`Map with ID ${mapId} not found`);
+        }
+        return Array.from(map.points.values()).find(point => point.name === pointName);
+    }
 }
 
 class RobotConfig {
@@ -157,6 +218,7 @@ class AutoXingRobot {
             throw new Error('Config must be an instance of RobotConfig');
         }
         this.config = config;
+        this.baseUrl = config.getBaseUrl();
         this.ws = null;
         this.subscribedTopics = new Set();
         this.connected = false;
@@ -167,6 +229,8 @@ class AutoXingRobot {
         // Initialize managers
         this.mapManager = new MapManager(this);
         this.pointManager = new PointManager(this, this.mapManager);
+
+        console.log('Robot initialized with base URL:', this.baseUrl);
     }
 
     // Connection Management
@@ -461,11 +525,28 @@ class AutoXingRobot {
     // Enhanced Map Management
     async initialize() {
         try {
-            await this.connect();
-            await this.mapManager.refreshMaps();
-            if (this.mapManager.currentMapId) {
-                await this.pointManager.refreshPoints(this.mapManager.currentMapId);
+            // Connect if not already connected
+            if (!this.connected) {
+                await this.connect();
             }
+
+            // Get available maps
+            const maps = await this.mapManager.refreshMaps();
+            console.log('Available maps:', maps);
+
+            if (maps.length === 0) {
+                throw new Error('No maps available');
+            }
+
+            // Set current map
+            const currentMap = maps[0];
+            await this.mapManager.setCurrentMap(currentMap.id);
+            console.log(`Set current map to: ${currentMap.id}`);
+
+            // Refresh points for current map
+            await this.pointManager.refreshPoints(currentMap.id);
+            console.log('Points refreshed for current map');
+
             return true;
         } catch (error) {
             console.error('Error initializing robot:', error);
@@ -474,18 +555,15 @@ class AutoXingRobot {
     }
 
     // Enhanced Movement Methods
-    async moveToNamedPoint(mapName, pointName) {
-        const map = this.mapManager.getMapByName(mapName);
-        if (!map) {
-            throw new Error(`Map ${mapName} not found`);
-        }
-
-        const point = this.pointManager.getPointByName(map.id, pointName);
+    async moveToNamedPoint(mapId, pointName) {
+        const point = this.pointManager.getMapPointByName(mapId, pointName);
         if (!point) {
-            throw new Error(`Point ${pointName} not found in map ${mapName}`);
+            throw new Error(`Point "${pointName}" not found in map ${mapId}`);
         }
 
         const [x, y] = point.coordinates;
+        console.log(`Moving to point "${pointName}" at coordinates [${x}, ${y}]`);
+        return this.moveToPoint(x, y);
     }
 
     async disconnect() {

@@ -1,12 +1,24 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
+console.log('Environment variables:', {
+    user: process.env.POSTGRES_USER,
+    password: typeof process.env.POSTGRES_PASSWORD,
+    database: process.env.POSTGRES_DB,
+    host: process.env.POSTGRES_HOST,
+    port: process.env.POSTGRES_PORT
+});
+
+console.log('Looking for .env file in:', path.join(__dirname, '..', '.env'));
+
+// Using hardcoded values that we know work
 const pool = new Pool({
-    user: process.env.POSTGRES_USER || 'postgres',
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB || 'robot_interface',
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: process.env.POSTGRES_PORT || 5432,
+    user: 'Denton Burr',
+    password: 'burr',
+    database: 'postgres',
+    host: 'localhost',
+    port: 5432
 });
 
 // Test the connection

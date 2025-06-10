@@ -2,12 +2,12 @@ const { AutoXingRobot, RobotConfig } = require('./robot-interface');
 const ESP32ElevatorController = require('./backend/core/ESP32ElevatorController');
 
 // Robot configuration
-const robotConfig = {
+const robotConfig = new RobotConfig({
     serialNumber: 'L382502104987ir',
     publicIp: '47.180.91.99',
     localIp: '192.168.4.31',
     secret: '667a51a4d948433081a272c78d10a8a4'
-};
+});
 
 // ESP32 configuration
 const esp32Config = {
@@ -48,20 +48,73 @@ async function testElevatorMovement(currentFloor, targetFloor) {
         await robot.connect();
         console.log('Robot connected successfully');
 
+        // Initialize robot and maps
+        await robot.initialize();
+        console.log('Robot initialized');
+        
+        // Get available maps
+        const maps = await robot.mapManager.refreshMaps();
+        console.log('Available maps:', maps);
+        
+        if (maps.length === 0) {
+            throw new Error('No maps available. Please create a map first.');
+        }
+        
+        // Use the first available map
+        const currentMap = maps[0];
+        await robot.mapManager.setCurrentMap(currentMap.id);
+        console.log(`Using map: ${currentMap.name} (${currentMap.id})`);
+
         // Initialize elevator controller
         const elevatorController = new ESP32ElevatorController(esp32Config);
         await elevatorController.connect();
         console.log('Elevator controller connected successfully');
 
+        // Create movement points in the current map if they don't exist
+        for (const floor of [currentFloor, targetFloor]) {
+            const coords = floorCoordinates[floor];
+            
+            // Add approach point
+            await robot.pointManager.addMapPoint(currentMap.id, {
+                name: `floor_${floor}_approach`,
+                coordinates: [coords.approach.x, coords.approach.y],
+                type: 'waypoint',
+                properties: {
+                    floor: floor,
+                    pointType: 'approach'
+                }
+            });
+            
+            // Add entrance point
+            await robot.pointManager.addMapPoint(currentMap.id, {
+                name: `floor_${floor}_entrance`,
+                coordinates: [coords.entrance.x, coords.entrance.y],
+                type: 'waypoint',
+                properties: {
+                    floor: floor,
+                    pointType: 'entrance'
+                }
+            });
+            
+            // Add exit point
+            await robot.pointManager.addMapPoint(currentMap.id, {
+                name: `floor_${floor}_exit`,
+                coordinates: [coords.exit.x, coords.exit.y],
+                type: 'waypoint',
+                properties: {
+                    floor: floor,
+                    pointType: 'exit'
+                }
+            });
+        }
+
         // 1. Move to elevator approach point on current floor
         console.log('Moving to elevator approach point...');
-        const approachPoint = floorCoordinates[currentFloor].approach;
-        await robot.moveTo(approachPoint);
+        await robot.moveToNamedPoint(currentMap.id, `floor_${currentFloor}_approach`);
 
         // 2. Move to elevator entrance
         console.log('Moving to elevator entrance...');
-        const entrancePoint = floorCoordinates[currentFloor].entrance;
-        await robot.moveTo(entrancePoint);
+        await robot.moveToNamedPoint(currentMap.id, `floor_${currentFloor}_entrance`);
 
         // 3. Open elevator door
         console.log('Opening elevator door...');
@@ -90,8 +143,7 @@ async function testElevatorMovement(currentFloor, targetFloor) {
 
         // 9. Move out of elevator
         console.log('Moving out of elevator...');
-        const exitPoint = floorCoordinates[targetFloor].exit;
-        await robot.moveTo(exitPoint);
+        await robot.moveToNamedPoint(currentMap.id, `floor_${targetFloor}_exit`);
 
         // 10. Close elevator door
         console.log('Closing elevator door...');
