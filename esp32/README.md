@@ -1,47 +1,53 @@
-# ESP32 Elevator Controller
+# ESP32-S3 Elevator Controller
 
-This project implements an ESP32-based elevator control system using a 6-channel relay module.
+This project implements an ESP32-S3-based elevator control system using a 6-channel relay module.
 
 ## Hardware Requirements
 
-1. ESP32 Development Board
-2. 6-Channel Relay Module
-3. Power Supply (5V for relays, 3.3V for ESP32)
+1. ESP32-S3 DevKitC-1 Board
+2. 6-Channel Relay Module (Active LOW)
+3. Power Supply:
+   - 5V for relays (JD-VCC)
+   - 3.3V for ESP32-S3 logic
 4. Jumper Wires
-5. USB Cable for programming
+5. USB-C Cable for programming
 
 ## Pin Connections
 
-Connect the ESP32 to the 6-channel relay module as follows:
+Connect the ESP32-S3 to the 6-channel relay module as follows:
 
 ```
-ESP32 Pin -> Relay Channel -> Function
-GPIO16   -> Relay 1      -> Door Open
-GPIO17   -> Relay 2      -> Door Close
-GPIO18   -> Relay 3      -> Floor 1 Selection
-GPIO19   -> Relay 4      -> Floor 2 Selection
-GPIO21   -> Relay 5      -> Floor 3 Selection
-GPIO22   -> Relay 6      -> Floor 4 Selection
+ESP32-S3 Pin -> Relay Channel -> Function
+GPIO16      -> Relay 1      -> Door Open
+GPIO17      -> Relay 2      -> Door Close
+GPIO18      -> Relay 3      -> Floor 1 Selection
+GPIO19      -> Relay 4      -> Floor 2 Selection
+GPIO21      -> Relay 5      -> Floor 3 Selection
+GPIO22      -> Relay 6      -> Floor 4 Selection
 ```
 
 Additional connections:
-- Connect ESP32 GND to Relay Module GND
-- Connect ESP32 3.3V to Relay Module VCC (if relay module accepts 3.3V logic)
-- Connect 5V power supply to Relay Module JD-VCC
+- Connect ESP32-S3 GND to Relay Module GND
+- Connect ESP32-S3 3.3V to Relay Module VCC (logic power)
+- Connect 5V power supply to Relay Module JD-VCC (relay power)
 
-## Software Setup
+## Software Setup in Cursor
 
-1. Install PlatformIO in VS Code:
-   - Open VS Code
-   - Go to Extensions
-   - Search for "PlatformIO"
-   - Install PlatformIO IDE
+1. Install PlatformIO Core:
+   ```bash
+   pip install platformio
+   ```
 
-2. Open this project in VS Code:
+2. Install Required VS Code Extensions:
+   - PlatformIO IDE
+   - C/C++
+   - C/C++ Extension Pack
+
+3. Open Project in Cursor:
    - File -> Open Folder
-   - Select the `esp32` folder containing `platformio.ini`
+   - Select the `esp32` folder
 
-3. Configure WiFi Settings:
+4. Configure WiFi Settings:
    - Open `src/main.cpp`
    - Update WiFi credentials:
      ```cpp
@@ -49,9 +55,10 @@ Additional connections:
      const char* password = "YOUR_WIFI_PASSWORD";
      ```
 
-4. Build and Upload:
+5. Build and Upload:
+   - Click the PlatformIO "Build" button or press Ctrl+Alt+B
    - Click the PlatformIO "Upload" button or press Ctrl+Alt+U
-   - Wait for the upload to complete
+   - Open Serial Monitor with PlatformIO "Monitor" button or Ctrl+Alt+S
 
 ## LED Status Indicators
 
@@ -63,29 +70,40 @@ The built-in LED (GPIO2) provides status information:
 
 ## Testing
 
-1. After uploading, open the Serial Monitor (PlatformIO -> Monitor)
-2. The ESP32 will display its IP address upon connecting to WiFi
-3. Test the connection using the provided test script:
+1. After uploading, open Serial Monitor (115200 baud)
+2. The ESP32-S3 will display its IP address upon connecting to WiFi
+3. Use `test-relay-only.js` to test the relay functionality:
    ```bash
-   node test-elevator-movement.js 1 2  # Move from floor 1 to 2
+   node test-relay-only.js 1 3  # Test movement from floor 1 to 3
    ```
 
 ## Troubleshooting
 
-1. If relays don't switch:
-   - Check relay module power supply
-   - Verify pin connections
-   - Ensure relay module logic level matches ESP32 (3.3V)
-
-2. If WiFi won't connect:
+1. Connection Issues:
    - Verify WiFi credentials
-   - Check WiFi signal strength
-   - Try power cycling the ESP32
+   - Check USB connection
+   - Try pressing the BOOT button while uploading
 
-3. If WebSocket connection fails:
-   - Verify ESP32 IP address
-   - Check if port 81 is accessible
-   - Ensure no firewall blocking
+2. Relay Issues:
+   - Verify 5V power supply connection
+   - Check relay module jumper settings
+   - Listen for relay clicking sounds
+   - Monitor LED status indicators
+
+3. Serial Monitor Issues:
+   - Check baud rate (115200)
+   - Try different USB ports
+   - Verify USB cable is data-capable
+
+## Project Structure
+
+```
+esp32/
+├── platformio.ini        # PlatformIO configuration
+├── src/
+│   └── main.cpp         # Main ESP32 code
+└── README.md            # This file
+```
 
 ## Safety Notes
 
