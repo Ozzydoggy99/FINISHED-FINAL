@@ -53,7 +53,7 @@ void setup() {
     }
     Serial.println("");
     Serial.println("WiFi connected");
-    Serial.println("IP address: ");
+    Serial.println("Local IP address: ");
     Serial.println(WiFi.localIP());
     
     // Start WebSocket server
