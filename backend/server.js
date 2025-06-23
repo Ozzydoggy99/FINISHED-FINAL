@@ -289,10 +289,11 @@ const checkAuth = (req, res, next) => {
 
 // Robot configuration
 const robotConfig = {
-    id: 'L382502104987ir',
-    ip: '47.180.91.99',
+    serialNumber: 'L382502104987ir',
+    publicIP: '47.180.91.99',
+    privateIP: '192.168.1.100', // Adding a default private IP
     port: 8090,
-    secret: '667a51a4d948433081a272c78d10a8a4',
+    secretKey: '667a51a4d948433081a272c78d10a8a4',
     name: 'Public Robot',
     type: 'standard'
 };
